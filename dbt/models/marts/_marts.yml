@@ -1,0 +1,150 @@
+version: 2
+
+# Every column description below is pushed to BigQuery (persist_docs), where it shows
+# up in the console, as Data Studio field descriptions, and as context for BigQuery
+# conversational agents. Writing these well is how AI querying gets correct answers.
+
+models:
+  - name: fct_paid_media_daily
+    description: >
+      Paid media performance from Google Ads and Meta. Grain: one row per
+      report_date × platform × campaign. Additive measures only — compute ratios
+      as SUM(numerator) / SUM(denominator), never by averaging rows.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, platform, campaign_id]
+    columns:
+      - name: report_date
+        description: Day the activity happened, in the ad account's timezone. Partition column — always filter on it.
+        data_tests: [not_null]
+      - name: client_code
+        description: Three-letter client code, resolved from the ad account (not the campaign name).
+        data_tests:
+          - not_null
+          - relationships:
+              arguments:
+                to: ref('client_mapping')
+                field: client_code
+      - name: platform
+        description: Ad platform the row came from.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [google_ads, meta_ads]
+      - name: campaign_type
+        description: Google advertising_channel_type (search, performance_max, demand_gen) or Meta objective.
+      - name: objective
+        description: Objective parsed from the campaign name (conversion, lead_generation, awareness, traffic, unknown).
+      - name: impressions
+        description: Times an ad was shown.
+        data_tests: [non_negative]
+      - name: clicks
+        description: >
+          Google Ads clicks, or Meta *link* clicks (inline_link_clicks). Meta "all clicks"
+          is excluded on purpose so CTR and CPC are comparable across platforms.
+        data_tests:
+          - non_negative
+          - not_greater_than:
+              arguments:
+                compare_to: impressions
+      - name: spend_local
+        description: Media cost in the ad account's own currency (see currency_code).
+      - name: spend_aud
+        description: Media cost converted to AUD at the rate valid on report_date. Use this for any cross-client total.
+        data_tests: [not_null, non_negative]
+      - name: conversions
+        description: >
+          Platform-reported conversions using each platform's own attribution model
+          (Google Ads: account default, often data-driven, so fractional; Meta: the
+          primary action type). Will not match GA4 key events — by design.
+        data_tests: [non_negative]
+      - name: conversion_value_aud
+        description: Platform-reported conversion value in AUD.
+      - name: rate_to_aud
+        description: FX rate applied (1 for AUD accounts).
+        data_tests: [not_null]
+
+  - name: fct_web_traffic_daily
+    description: >
+      GA4 sessions, key events and revenue. Grain: report_date × property ×
+      source × medium × campaign. GA4 uses its own (session-scoped) attribution.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, property_id, source, medium, campaign_name]
+    columns:
+      - name: client_code
+        description: Client that owns the GA4 property.
+        data_tests: [not_null]
+      - name: channel
+        description: Channel assigned by the channel_mapping seed rules (medium-based).
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [paid_search, paid_social, organic_search, email, direct, referral, other]
+      - name: sessions
+        description: GA4 sessions.
+      - name: key_events
+        description: GA4 key events (the metric GA4 used to call "conversions").
+      - name: revenue_aud
+        description: GA4 total revenue converted to AUD.
+
+  - name: dim_campaign
+    description: One row per campaign per platform, with client, market, objective and naming-convention status.
+    columns:
+      - name: campaign_key
+        description: platform-campaign_id, unique across platforms.
+        data_tests: [unique, not_null]
+      - name: follows_naming_convention
+        description: True when the name matches {CLIENT}_{MARKET}_{OBJECTIVE}_{Descriptor}.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [true]
+                quote: false
+              config:
+                severity: warn   # flags the campaign for the account team, doesn't block the run
+
+  - name: rpt_client_channel_daily
+    description: >
+      Executive-overview reporting table for Data Studio. Grain: report_date ×
+      client × channel. Paid spend and GA4 outcomes on the same row.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, client_code, channel]
+    columns:
+      - name: spend_aud
+        description: Paid media spend in AUD (0 for unpaid channels).
+      - name: platform_conversions
+        description: Conversions as reported by the ad platforms.
+      - name: ga4_key_events
+        description: Key events as recorded by GA4 for the same channel.
+      - name: is_paid_channel
+        description: True for paid_search and paid_social.
+
+  - name: rpt_campaign_performance_daily
+    description: >
+      Campaign drill-down for Data Studio: platform-reported results next to GA4
+      results for the same campaign (matched on utm_campaign). Grain:
+      report_date × platform × campaign.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, platform, campaign_id]
+
+  - name: rpt_budget_pacing
+    description: Month-to-date spend vs. budget per client with a straight-line month-end projection.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [client_code, month_start]
+    columns:
+      - name: pacing_ratio
+        description: projected_spend_aud / monthly_budget_aud. A status for one row — never sum or average it.
+      - name: pacing_status
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [overpacing, underpacing, on_track]

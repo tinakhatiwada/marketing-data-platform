@@ -1,0 +1,5 @@
+currency_code,valid_from,rate_to_aud
+AUD,2020-01-01,1.0
+NZD,2020-01-01,0.91
+NZD,2026-07-01,0.905
+USD,2020-01-01,1.52

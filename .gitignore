@@ -1,0 +1,20 @@
+# secrets
+.env
+*.json.key
+service-account*.json
+
+# local warehouse + dbt artifacts
+/warehouse/
+dbt/target/
+dbt/logs/
+dbt/dbt_packages/
+dbt/.user.yml
+
+# python
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ruff_cache/
+build/
+dist/

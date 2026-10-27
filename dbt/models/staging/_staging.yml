@@ -1,0 +1,56 @@
+version: 2
+
+models:
+  - name: stg_google_ads__campaign_daily
+    description: Google Ads daily campaign performance, renamed to house conventions and de-duplicated.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, account_id, campaign_id]
+    columns:
+      - name: spend_local
+        description: Cost in the ad account's currency (cost_micros / 1,000,000).
+        data_tests: [non_negative]
+      - name: clicks
+        data_tests:
+          - not_greater_than:
+              arguments:
+                compare_to: impressions
+
+  - name: stg_meta_ads__campaign_daily
+    description: Meta daily campaign performance, renamed to house conventions and de-duplicated.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, account_id, campaign_id]
+    columns:
+      - name: clicks
+        description: Link clicks (inline_link_clicks) — comparable to a Google Ads click.
+        data_tests:
+          - not_greater_than:
+              arguments:
+                compare_to: clicks_all
+      - name: spend_local
+        data_tests: [non_negative]
+      - name: conversion_action_type
+        description: Which Meta action_type was counted as the primary conversion.
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: [omni_purchase, purchase, offsite_conversion.fb_pixel_purchase,
+                         lead, onsite_conversion.lead_grouped, offsite_conversion.fb_pixel_lead]
+
+  - name: stg_ga4__traffic_daily
+    description: GA4 traffic by source/medium/campaign, lower-cased and de-duplicated.
+    data_tests:
+      - unique_combination_of_columns:
+          arguments:
+            combination_of_columns: [report_date, property_id, source, medium, campaign_name]
+    columns:
+      - name: sessions
+        data_tests: [non_negative]
+      - name: engaged_sessions
+        data_tests:
+          - not_greater_than:
+              arguments:
+                compare_to: sessions

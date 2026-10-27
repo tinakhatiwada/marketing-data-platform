@@ -1,0 +1,22 @@
+version: 2
+
+models:
+  - name: int_campaigns__parsed
+    description: >
+      One row per platform × campaign with the latest name parsed by the naming
+      convention {CLIENT}_{MARKET}_{OBJECTIVE}_{Descriptor}.
+    columns:
+      - name: follows_naming_convention
+        description: True when campaign_name matches the house naming convention.
+      - name: objective
+        description: conversion | lead_generation | awareness | traffic | unknown.
+
+  - name: int_paid_media__unioned
+    description: >
+      Google Ads and Meta in one shape, with client resolved from the ad account
+      and money converted to AUD using the rate valid on report_date.
+
+  - name: int_ga4__traffic_channelled
+    description: >
+      GA4 traffic with a channel from the channel_mapping seed (lowest-priority
+      matching rule wins) and the client resolved from the GA4 property.

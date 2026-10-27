@@ -1,0 +1,56 @@
+name: adpulse
+version: "1.0.0"
+config-version: 2
+profile: adpulse
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+test-paths: ["tests"]
+macro-paths: ["macros"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+vars:
+  # Must match the pipeline's LOOKBACK_DAYS: incremental models rebuild this many
+  # days so late-attributed conversions (Meta/Google restate for ~28 days) land.
+  lookback_days: 30
+  reporting_currency: AUD
+
+models:
+  adpulse:
+    # Push column/table descriptions into BigQuery so analysts, Data Studio field
+    # tooltips and BigQuery conversational agents all see the same definitions.
+    +persist_docs:
+      relation: true
+      columns: true
+    staging:
+      +schema: staging
+      +materialized: view
+    intermediate:
+      +schema: staging
+      +materialized: view
+    marts:
+      +schema: analytics
+      +materialized: table
+
+seeds:
+  adpulse:
+    +schema: reference
+    # IDs must stay strings (leading zeros, 10+ digits); types differ per adapter.
+    client_mapping:
+      +column_types:
+        ga4_property_id: "{{ 'string' if target.type == 'bigquery' else 'varchar' }}"
+        google_ads_customer_id: "{{ 'string' if target.type == 'bigquery' else 'varchar' }}"
+        meta_ad_account_id: "{{ 'string' if target.type == 'bigquery' else 'varchar' }}"
+        monthly_budget_aud: "{{ 'float64' if target.type == 'bigquery' else 'double' }}"
+    fx_rates:
+      +column_types:
+        valid_from: date
+        rate_to_aud: "{{ 'float64' if target.type == 'bigquery' else 'double' }}"
+    channel_mapping:
+      +column_types:
+        priority: "{{ 'int64' if target.type == 'bigquery' else 'integer' }}"
+
+tests:
+  adpulse:
+    +severity: error

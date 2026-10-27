@@ -1,0 +1,8 @@
+priority,source_pattern,medium_pattern,channel
+1,.*,^(cpc|ppc|paidsearch)$,paid_search
+2,.*,^(paid|paid_social|paidsocial|cpm)$,paid_social
+3,.*,^organic$,organic_search
+4,.*,^(email|e-mail|newsletter)$,email
+5,^\(direct\)$,^\(none\)$,direct
+6,.*,^referral$,referral
+99,.*,.*,other

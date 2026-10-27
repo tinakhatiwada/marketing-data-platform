@@ -1,0 +1,44 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "adpulse"
+version = "1.0.0"
+description = "Marketing data platform: GA4, Google Ads and Meta Ads → BigQuery → dbt → Data Studio"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "requests>=2.31",
+    "pandas>=2.1",
+    "duckdb>=1.0",
+    "dbt-duckdb>=1.8",
+    "pyarrow>=14",
+]
+
+[project.optional-dependencies]
+bigquery = [
+    "google-cloud-bigquery>=3.20",
+    "dbt-bigquery>=1.8",
+    "db-dtypes>=1.2",
+]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[project.scripts]
+adpulse = "adpulse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src", "."]
+markers = ["e2e: runs the full pipeline including dbt (slower)"]

@@ -16,11 +16,65 @@ are caught by the pipeline before a client or account manager notices.
 
 ```bash
 git clone <this repo> && cd marketing-data-platform
-python -m venv .venv && source .venv/bin/activate
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
 make demo            # 90 days of data → extract → load → dbt build (58 models/tests) → checks
 make demo-anomaly    # 4× budget-typo spend spike → the pipeline catches it and exits 1
+make dashboard       # Streamlit dashboard on the local warehouse (http://localhost:8501)
 ```
+
+Without `make` (e.g. Windows CMD): `adpulse run --mode demo --days 90`, then `streamlit run app.py`.
+
+### What runs locally vs. what is designed for production
+
+| | Local demo (verified, runs in CI) | Production design |
+|---|---|---|
+| Data | Synthetic GA4 / Google Ads / Meta data for three fictional clients | Real APIs (GA4 Data API, Google Ads API, Meta Marketing API) |
+| Warehouse | DuckDB file (`warehouse/adpulse.duckdb`, not committed) | BigQuery, partitioned and clustered |
+| Transformations | The same dbt project, `duckdb` target | The same dbt project, `bigquery` target |
+| Checks and alerts | Same checks; alerts printed to the console | Same checks; alerts sent to Slack |
+| Dashboard | Streamlit app (`app.py`), screenshots below | Data Studio report ([build guide](docs/data_studio_guide.md)) |
+| Scheduling | Run by hand | Cloud Run job + Cloud Scheduler |
+
+Everything in the left column is exercised by the test suite. The connectors, the BigQuery
+warehouse class and the deploy script are written and unit-tested against mocked APIs, but
+the screenshots in this README come from the local demo, not from client data.
+
+---
+
+## Dashboard (local demo)
+
+A four-page Streamlit app reads the dbt marts directly. One sidebar date range and client
+filter drive every page. All figures are synthetic.
+
+**Overview**: spend, conversions, CPA and paid-channel GA4 ROAS, with daily trends and a
+channel breakdown.
+
+![Overview page](docs/img/overview.png)
+
+**Campaigns**: per-campaign efficiency, with platform-reported and GA4-attributed ROAS side
+by side. The naming-convention warning at the bottom is intentional: the demo data contains
+a `Test campaign - DO NOT USE` that breaks the `CLIENT_MARKET_OBJECTIVE_Name` convention,
+to show the check working.
+
+![Campaigns page](docs/img/campaigns.png)
+
+**Budget pacing**: month-to-date spend against budget, projected to month end.
+
+![Budget pacing page](docs/img/budget_pacing.png)
+
+**Pipeline health**: freshness and data-quality results from the latest run, plus a history
+of problems caught (here, the spend spike injected by `make demo-anomaly`).
+
+![Pipeline health page](docs/img/pipeline_health.png)
+
+Two rules keep the numbers consistent across pages:
+
+- Ratios (CTR, CPC, CPA, ROAS) are always `SUM(numerator) / SUM(denominator)`, never an
+  average of daily ratios.
+- GA4 ROAS divides **paid-channel** GA4 revenue by media spend. Including organic and direct
+  revenue would overstate it (5.20x instead of 3.17x on the demo data).
+  `python scripts/check_dashboard_data.py` reconciles the dashboard totals against the marts.
 
 ---
 
@@ -219,8 +273,11 @@ dbt/
   macros/          cross-database helpers, schema naming
   tests/           singular tests (spend reconciliation, future dates, naming)
 infra/             Cloud Run + Scheduler deploy, BigQuery scheduled query, cost queries
+app.py             Streamlit dashboard over the local DuckDB marts
+scripts/           OAuth refresh-token helper, dashboard reconciliation queries
 docs/              metric definitions, Data Studio guide, data agent, cost, runbook
-tests/             unit tests (HTTP, every connector, auth, loads, alerts) + e2e
+docs/img/          dashboard screenshots
+tests/             unit tests (HTTP, every connector, auth, loads, alerts) + e2e + dashboard
 ```
 
 ## Documentation

@@ -1,4 +1,4 @@
-.PHONY: install demo demo-anomaly test lint docs clean
+.PHONY: install demo demo-anomaly dashboard test lint docs clean
 
 install:            ## install the package with dev tools
 	pip install -e ".[dev]"
@@ -11,11 +11,14 @@ demo-anomaly:       ## same, with a spend spike on the last day to show alerting
 	@echo "(exit code 1 above is expected: the spend-anomaly check failed the run)"
 	@adpulse run --mode demo > /dev/null 2>&1 && echo "re-ran clean demo to restore normal data"
 
+dashboard:          ## local Streamlit dashboard over the demo warehouse
+	streamlit run app.py
+
 test:               ## unit + end-to-end tests
 	pytest -q
 
 lint:
-	ruff check src tests
+	ruff check src tests scripts app.py
 
 docs:               ## dbt docs (lineage graph + column definitions) as one HTML file
 	cd dbt && dbt docs generate --profiles-dir . --target local --static

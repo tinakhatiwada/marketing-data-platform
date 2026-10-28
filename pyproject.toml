@@ -23,7 +23,8 @@ bigquery = [
     "dbt-bigquery>=1.8",
     "db-dtypes>=1.2",
 ]
-dev = ["pytest>=8", "ruff>=0.5"]
+dashboard = ["streamlit>=1.50", "plotly>=5.20"]
+dev = ["pytest>=8", "ruff>=0.5", "streamlit>=1.50", "plotly>=5.20"]
 
 [project.scripts]
 adpulse = "adpulse.cli:main"
